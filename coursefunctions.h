@@ -40,6 +40,7 @@ void GameOfLife(Buffer2D<PIXEL> & target)
 
         //Parse for inputs
         SDL_Event e;
+
         while(SDL_PollEvent(&e)) 
         {
                 int mouseX;
@@ -159,6 +160,7 @@ void GameOfLife(Buffer2D<PIXEL> & target)
                 {
                         int yScal = y/scaleFactor;
                         int xScal = x/scaleFactor;
+                        
                         if(grid[yScal][xScal] == 0)
                         {
                                 // Dead Color
@@ -311,15 +313,21 @@ void TestDrawFragments(Buffer2D<PIXEL> & target)
         colorTriangle[1] = (Vertex){450, 452, 1, 1};
         colorTriangle[2] = (Vertex){50, 452, 1, 1};
         PIXEL colors[3] = {0xffff0000, 0xff00ff00, 0xff0000ff}; // Or {{1.0,0.0,0.0}, {0.0,1.0,0.0}, {0.0,0.0,1.0}}
-        // Your color code goes here for 'colorAttributes'
+
+        // Sets the colors for the vertexs
+        colorAttributes[0].setRed(1.0);
+	colorAttributes[1].setGreen(1.0);
+	colorAttributes[2].setBlue(1.0);
 
         FragmentShader myColorFragShader;
-        // Your code for the color fragment shader goes here
+        myColorFragShader.FragShader = ColorFragShader;
 
         Attributes colorUniforms;
         // Your code for the uniform goes here, if any (don't pass NULL here)
 
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader);
+
+        //return;
 
         /****************************************************
          * 2. Interpolated image triangle
@@ -330,16 +338,20 @@ void TestDrawFragments(Buffer2D<PIXEL> & target)
         imageTriangle[1] = (Vertex){500, 252, 1, 1};
         imageTriangle[2] = (Vertex){350, 252, 1, 1};
         double coordinates[3][2] = { {1,0}, {1,1}, {0,1} };
-        // Your texture coordinate code goes here for 'imageAttributes'
 
-        BufferImage myImage("image.bmp");
-        // Provide an image in this directory that you would like to use (powers of 2 dimensions)
+        // Sets the bitmap cooridnates for the triangle
+        imageAttributes[0].setCoor(coordinates[0][0], coordinates[0][1]);
+        imageAttributes[1].setCoor(coordinates[1][0], coordinates[1][1]);
+        imageAttributes[2].setCoor(coordinates[2][0], coordinates[2][1]);
+
+        static BufferImage myImage("142008.bmp");
 
         Attributes imageUniforms;
-        // Your code for the uniform goes here
+        imageUniforms.myMap["img"].ptr = &myImage;
+        //imageUniforms.setImg(&myImage);
 
         FragmentShader myImageFragShader;
-        // Your code for the image fragment shader goes here
+        myImageFragShader.FragShader = ImageFragShader;
 
         DrawPrimitive(TRIANGLE, target, imageTriangle, imageAttributes, &imageUniforms, &myImageFragShader);
 }
@@ -374,16 +386,22 @@ void TestDrawPerspectiveCorrect(Buffer2D<PIXEL> & target)
         verticesImgB[2] = quad[0];
 
         double coordinates[4][2] = { {0/divA,0/divA}, {1/divA,0/divA}, {1/divB,1/divB}, {0/divB,1/divB} };
-        // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
+        // Setting the texture coordinates for image A, the first tiangle
+        imageAttributesA[0].setCoor(coordinates[0][0], coordinates[0][1]);
+        imageAttributesA[1].setCoor(coordinates[1][0], coordinates[1][1]);
+        imageAttributesA[2].setCoor(coordinates[2][0], coordinates[2][1]);
 
-        BufferImage myImage("checker.bmp");
-        // Ensure the checkboard image is in this directory
+        // Setting the texture coordinates for image B, the second tiangle
+        imageAttributesB[0].setCoor(coordinates[2][0], coordinates[2][1]);
+        imageAttributesB[1].setCoor(coordinates[3][0], coordinates[3][1]);
+        imageAttributesB[2].setCoor(coordinates[0][0], coordinates[0][1]);
 
+        // Sets the image as an attribute *** Currently doesn't work because of the bit map issues with mac ***
         Attributes imageUniforms;
-        // Your code for the uniform goes here
 
+        // Set the fragment shader
         FragmentShader fragImg;
-        // Your code for the image fragment shader goes here
+        fragImg.FragShader = FragShaderUVwithoutImage;
                 
         // Draw image triangle 
         DrawPrimitive(TRIANGLE, target, verticesImgA, imageAttributesA, &imageUniforms, &fragImg);
@@ -421,7 +439,7 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
          *****************************************************************/
         // Your translating code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
 
-		DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
+	DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /***********************************
          * SCALE (scale by a factor of 0.5)
