@@ -10,6 +10,8 @@
             "args": [
                 "-w",
                 "-g",
+                "-march=native",
+                "-O3",
                 "${workspaceRoot}/pipeline.cpp",
                 "-o",
                 "${workspaceRoot}/pipeline",

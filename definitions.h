@@ -3,8 +3,8 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "math.h"
-#include <map>
-#include <string>
+#include "Transform.h"
+#include <vector>
 
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
@@ -23,11 +23,22 @@
 #define MAX(A,B) A > B ? A : B
 #define MIN3(A,B,C) MIN((MIN(A,B)),C)
 #define MAX3(A,B,C) MAX((MAX(A,B)),C)
+#define MEMBERS_PER_ATTRIB
 #define X_KEY 0
 #define Y_KEY 1
 
 // Max # of vertices after clipping
 #define MAX_VERTICES 8 
+
+/****************************************************
+ * X, Y, Z, handy enums
+ ***************************************************/
+enum DIMENSION
+{
+    X = 0,
+    Y = 1,
+    Z = 2
+};
 
 /******************************************************
  * Types of primitives our pipeline will render.
@@ -49,6 +60,18 @@ struct Vertex
     double z;
     double w;
 };
+
+// Everything needed for the view/camera transform
+struct camControls
+{
+	double x = 0;
+	double y = 0;
+	double z = 0;
+	double yaw = 0;
+	double roll = 0;
+	double pitch = 0;
+};
+camControls myCam;
 
 /******************************************************
  * BUFFER_2D:
@@ -139,6 +162,25 @@ class Buffer2D
 };
 
 
+// Struct used for reading in RGB values from a bitmap file
+struct bmpRGB
+{
+  unsigned char b;
+  unsigned char g; 
+  unsigned char r;
+};
+
+// The portion of the Bitmap header we want to read
+struct bmpLayout
+{
+  int offset;
+  int headerSize;
+  int width;
+  int height;
+  unsigned short colorPlanes;
+  unsigned short bpp;
+};
+
 /****************************************************
  * BUFFER_IMAGE:
  * PIXEL (Uint32) specific Buffer2D class with .BMP 
@@ -148,7 +190,8 @@ class BufferImage : public Buffer2D<PIXEL>
 {
     protected:       
         SDL_Surface* img;                   // Reference to the Surface in question
-        bool ourSurfaceInstance = false;    // Do we need to de-allocate?
+        bool ourSurfaceInstance = false;    // Do we need to de-allocate the SDL2 reference?
+    	bool ourBufferData = false;         // Are we using the non-SDL2 allocated memory
 
         // Private intialization setup
         void setupInternal()
@@ -167,10 +210,86 @@ class BufferImage : public Buffer2D<PIXEL>
             }
         }
 
+    private:
+
+        // Non-SDL2 24BPP, 2^N dimensions BMP reader
+        bool readBMP(const char* fileName)
+        {
+            // Read in Header - check signature
+            FILE * fp = fopen(fileName, "rb");	  
+
+            char signature[2];
+            
+            fread(signature, 1, 2, fp);
+
+            if(!(signature[0] == 'B' && signature[1] == 'M'))
+            {
+                printf("Invalid header for file: \"%c%c\"", signature[0], signature[1]);
+                return 1;
+            }
+
+            // Read in BMP formatting - verify type constraints
+            bmpLayout layout;
+            fseek(fp, 8, SEEK_CUR);
+            fread(&layout, sizeof(layout), 1, fp);
+            if(layout.width % 2 != 0 || layout.width <= 4)
+            {
+                printf("Size Width MUST be a power of 2 larger than 4; not %d\n", w);
+                return false;		
+            }
+            if(layout.bpp != 24)
+            {
+                printf("Bits per pixel of image must be 24; not %d\n", layout.bpp);
+                return false;
+            }
+
+            // Copy W+H information
+            w = layout.width;
+            h = layout.height;
+    
+            // Initialize internal pointers/memory
+            grid = (PIXEL**)malloc(sizeof(PIXEL*) * h);
+            for(int y = 0; y < h; y++) grid[y] = (PIXEL*)malloc(sizeof(PIXEL) * w);
+
+            // Advance to beginning of pixel data, read values in
+            bmpRGB* pixel = (bmpRGB*)malloc(sizeof(bmpRGB)*w*h);
+            fseek(fp, layout.offset, SEEK_SET);  	
+            fread(pixel, sizeof(bmpRGB), w*h, fp);
+
+            // Convert 24-bit RGB to 32-bit ARGB
+            bmpRGB* pixelPtr = pixel;
+            PIXEL* out = (PIXEL*)malloc(sizeof(PIXEL)*w*h);
+            for(int y = 0; y < h; y++)
+            {
+                for(int x = 0; x < w; x++)
+                {
+                    grid[y][x] = 0xff000000 + 
+                                 ((pixelPtr->r) << 16) +
+                                 ((pixelPtr->g) << 8) +
+                                 ((pixelPtr->b));
+                                 ++pixelPtr;
+                }
+            }
+    
+            // Release 24-Bit buffer, release file
+            free(pixel);
+            fclose(fp); 
+            return true;
+        }
+
     public:
         // Free dynamic memory
         ~BufferImage()
         {
+            // De-Allocate non-SDL2 image data
+            if(ourBufferData)
+            {
+                for(int y = 0; y < h; y++)
+                {
+                    free(grid[y]);
+                }
+            }
+
             // De-Allocate pointers for column references
             free(grid);
 
@@ -208,79 +327,26 @@ class BufferImage : public Buffer2D<PIXEL>
         // Constructor based on reading in an image - only meant for UINT32 type
         BufferImage(const char* path) 
         {
-            ourSurfaceInstance = true;
-            SDL_Surface* tmp = SDL_LoadBMP(path);      
-            SDL_PixelFormat* format = SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888);
-            img = SDL_ConvertSurface(tmp, format, 0);
-            SDL_FreeSurface(tmp);
-            SDL_FreeFormat(format);
-            setupInternal();
+	  ourSurfaceInstance = false;
+	  if(!readBMP(path))
+	    {
+	      return;
+	    }	  
         }
 };
+
+// Interpoaltes between 3 weighted points 3 different double values for barycentric
+inline double baryInterp(const double & firstWgt, const double & secndWgt, const double & thirdWgt,
+			 const double & firstVal, const double & secndVal, const double & thirdVal)
+{
+  return ((firstWgt * thirdVal) + (secndWgt * firstVal) + (thirdWgt * secndVal));
+}
 
 // Combine two datatypes in one
 union attrib
 {
   double d;
   void* ptr;
-};
-
-/****************************************************
- * Matrix class
- *  This class is ment to represent a Matrix
- *  in math, this will be utalized to translate, 
- *  scale, and rotate vertices locations
- *  so that they can be manipulated appropriately
- * *****************************************************/
-class Matrix
-{
-    public:
-
-    //Variables
-    double data[4][4];
-    int rows;
-    int cols;
-
-    //D Const
-    Matrix() { setRows(0); setCols(0); }
-    //N Const
-    Matrix(double input[][4], int r, int c) { setInfo(input, r, c); }
-
-
-    //Getters
-    int getRows(){return rows;}
-    int getCols(){return cols;}
-
-    //Setters
-    void setRows(int r){ this->rows = r; }
-    void setCols(int c){ this->cols = c; }
-    void setData(double input[][4], int r, int c)
-    {
-        for(int x = 0; x < r; x++)
-            for(int y = 0; y < c; y++)
-                data[x][y] = input[x][y];
-    }
-
-    //Fucntions
-    void setInfo(double input[][4], int r, int c)
-    {
-        setRows(r);
-        setCols(c);
-        setData(input, r, c);
-    }
-
-    //Overloaded Operators
-    void operator =(const Matrix & rhs) 
-    { 
-        //setInfo(rhs.data, rhs.getRows(), rhs.getCols()); 
-        for (int i = 0; i < rhs.rows; i++)
-            for (int j = 0; j < rhs.cols; j++)
-                this->data[i][j] = rhs.data[i][j];
-
-        setRows(rhs.rows);
-        setCols(rhs.cols);
-    }
-    void operator *=(const Matrix & rhs);
 };
 
 /***************************************************
@@ -292,232 +358,71 @@ class Matrix
 class Attributes
 {      
     public:
-        PIXEL color;
+        // Members
+    	int numMembers = 0;
+        attrib arr[16];
 
-        // Utalizing a map for flexability
-        std::map<std::string, attrib> myMap;
-        Matrix matrix;
+        // Obligatory empty constructor
+        Attributes() {numMembers = 0;}
 
-        // Obligatory constructor
-        Attributes()
+        // Interpolation Constructor
+        Attributes( const double & firstWgt, const double & secndWgt, const double & thirdWgt, 
+                    const Attributes & first, const Attributes & secnd, const Attributes & third,
+		    const double & correctZ)
         {
-            attrib empty, iEmpty;
-            empty.d = 0.0;
-            myMap.insert(std::pair<std::string, attrib>("u", empty));
-            myMap.insert(std::pair<std::string, attrib>("v", empty));
-            myMap.insert(std::pair<std::string, attrib>("r", empty));
-            myMap.insert(std::pair<std::string, attrib>("g", empty));
-            myMap.insert(std::pair<std::string, attrib>("b", empty));
-            myMap.insert(std::pair<std::string, attrib>("img", iEmpty));
+            while(numMembers < first.numMembers)
+            {
+	         arr[numMembers].d = baryInterp(firstWgt, secndWgt, thirdWgt, first.arr[numMembers].d, secnd[numMembers].d, third.arr[numMembers].d);
+			 arr[numMembers].d = arr[numMembers].d * correctZ;
+			 numMembers += 1;
+            }
         }
 
         // Needed by clipping (linearly interpolated Attributes between two others)
-        Attributes(const Attributes & first, const Attributes & second, const double & valueBetween)
+        Attributes(const Attributes & first, const Attributes & second, const double & along)
         {
-            // Your code goes here when clipping is implemented
+				numMembers = first.numMembers;
+				for(int i = 0; i < numMembers; i++)
+				{
+					arr[i].d = (first[i].d) + ((second[i].d - first[i].d) * along);
+				}
         }
 
-        // Getters
-        // Colors
-        double getRed() const {
-            return myMap.at("r").d;
-        }
-
-        double getGreen() const {
-            return myMap.at("g").d;
-        }
-
-        double getBlue() const {
-            return myMap.at("b").d;
-        }
-
-        // Bitmap coor
-        double getBU() const {
-            return myMap.at("u").d;
-        }
-
-        double getBV() const {
-            return myMap.at("v").d;
-        }
-
-        // Img stuff
-        void* getImg() const {
-            return myMap.at("img").ptr;
-        }
-
-        // Setters
-        // Colors
-        void setRed(double value) {
-            myMap["r"].d = value;
-        }
-
-        void setGreen(double value) {
-            myMap["g"].d = value;
-        }
-
-        void setBlue(double value) {
-            myMap["b"].d = value;
-        }
-
-        void setColor(double r, double g, double b) {
-            setRed(r);
-            setGreen(g);
-            setBlue(b);
-        }
-
-        // Bitmap coor
-        void setBU(double u) {
-            myMap["u"].d = u;
-        }
-
-        void setBV(double v) {
-            myMap["v"].d = v;
-        }
-
-        void setCoor(double u, double v) {
-            setBU(u);
-            setBV(v);
-        }
-        
-        // Img stuff
-        void setImg(void* img) {
-            myMap["img"].ptr = img;
-        }
-};
-
-/****************************************
- * The operator overloading from the
- * Matrix class are being defined
- ***************************************/
-void Matrix::operator*=(const Matrix & rhs)
-{
-    // Initalizing variables
-    double temp[4][4];
-    double tempVal = 0;
-
-    // Checks if we can do that matrix math in the first place
-    if (rhs.cols != getRows())
-        throw "ERROR: Invalid sizes\n";
-
-    // Loop through the number of rows in the RHS
-    for (int x = 0; x < rhs.rows; x++)
-    {
-        // Loop through the number of cols in LHS
-        for (int y = 0; y < getCols(); y++)
+        // Const Return operator
+        const attrib & operator[](const int & i) const
         {
-            double transfer[4];
-
-            //Flatten the LHS cols into a row for maths
-            for (int i = 0; i < getRows(); i++)
-                transfer[i] = this->data[i][y];
-
-            // Multiplies the rows and colloums
-            for (int i = 0; i < rhs.cols; i++)
-                tempVal += rhs.data[x][i] * transfer[i];
-
-            temp[x][y] = tempVal;
+            return arr[i];
         }
-    }
+
+        // Return operator
+        attrib & operator[](const int & i) 
+        {
+            return arr[i];
+        }
+
+        // Insert Double Into Container
+        void insertDbl(const double & d)
+        {
+            arr[numMembers].d = d;
+            numMembers += 1;
+        }
     
-    // Changes the rows for the matrix
-    setRows(rhs.rows);
+        // Insert Pointer Into Container
+        void insertPtr(void * ptr)
+        {
+            arr[numMembers].ptr = ptr;
+            numMembers += 1;
+        }
+};	
 
-    // Replaces the old matrix
-    for (int x = 0; x < getRows(); x++)
-        for (int y = 0; y < getCols(); y++)
-            this->data[x][y] = temp[x][y];
-}
-
-/******************************************************
- * MATRIX MULT OVERLOADED OPERATOR
- * Multiplies the two matricies together
- *****************************************************/ 
-Vertex operator * (const Vertex & lhs, const Matrix & rhs)
-{
-    // Declars variables
-    double tempVal = 0;
-    Vertex ret = {0,0,0,0};
-    double newVerts[4];
-    double oldVerts[4] = {lhs.x, lhs.y, lhs.z, lhs.w};
-
-    // Checks if we can do it
-    if (rhs.cols < 1 || rhs.cols > 4)
-        throw "ERROR: Invalid sizes";
-
-    // Runs thought the rows, do math and set the new verts to thoes values
-    for (int i = 0; i < rhs.rows; i++)
-    {
-        for (int j = 0; j < rhs.cols; j++)
-                tempVal += rhs.data[i][j] * oldVerts[j];
-                
-        newVerts[i] = tempVal;
-    }
-
-    // Fixes the return vertex and returns it 
-    ret.x = newVerts[0];
-    ret.y = newVerts[1];
-    ret.z = newVerts[2];
-    ret.w = newVerts[3];
-    return ret;
-}
-
-// Image Fragment Shader 
-void ImageFragShader(PIXEL & fragment, const Attributes & vertAttr, const Attributes & uniforms)
-{
-    // Creats a buffer for the image
-    BufferImage* bf = (BufferImage*)uniforms.getImg();
-
-    int x = vertAttr.getBU() * (bf->width()-1);
-    int y = vertAttr.getBV() * (bf->height()-1);
-
-    fragment = (*bf)[y][x];
-}
-
-// My Fragment Shader for color interpolation
-void ColorFragShader(PIXEL & fragment, const Attributes & vertAttr, const Attributes & uniforms)
-{
-    // Output our shader color value, in this case red
-    PIXEL color = 0xff000000;
-
-
-    color += (unsigned int)(vertAttr.getRed() *0xff) << 16;
-    color += (unsigned int)(vertAttr.getGreen() *0xff) << 8;
-    color += (unsigned int)(vertAttr.getBlue() *0xff) << 0;
-
-    fragment = color;
-}
-
-// Example of a fragment shader 
+// Example of a fragment shader
 void DefaultFragShader(PIXEL & fragment, const Attributes & vertAttr, const Attributes & uniforms)
 {
     // Output our shader color value, in this case red
     fragment = 0xffff0000;
 }
 
-// Frag Shader for UV without image (due to SDL2 bug?)
-void FragShaderUVwithoutImage(PIXEL & fragment, const Attributes & attributes, const Attributes & uniform)
-{
-    // Figure out which X/Y square our UV would fall on
-    int xSquare = attributes.getBU() * 8;
-    int ySquare = attributes.getBV() * 8;
-
-    // Is the X square position even? The Y? 
-    bool evenXSquare = (xSquare % 2) == 0;
-    bool evenYSquare = (ySquare % 2) == 0;
-
-    // Both even or both odd - red square
-    if( (evenXSquare && evenYSquare) || (!evenXSquare && !evenYSquare) )
-    {
-        fragment = 0xffff0000;
-    }
-    // One even, one odd - white square
-    else
-    {
-        fragment = 0xffffffff;
-    }
-}
-
-/****************************************************** *
+/*******************************************************
  * FRAGMENT_SHADER
  * Encapsulates a programmer-specified callback
  * function for shading pixels. See 'DefaultFragShader'
@@ -556,15 +461,6 @@ void DefaultVertShader(Vertex & vertOut, Attributes & attrOut, const Vertex & ve
     vertOut = vertIn;
     attrOut = vertAttr;
 }
-
-// A vertex shader that transforms based off of a matrix
-void TransformVertexShader(Vertex & vertOut, Attributes & attrOut, const Vertex & vertIn, const Attributes & vertAttr, const Attributes & uniforms)
-{
-    vertOut = vertIn * uniforms.matrix;
-    attrOut = vertAttr;
-}
-
-
 
 /**********************************************************
  * VERTEX_SHADER
@@ -610,28 +506,156 @@ void DrawPrimitive(PRIMITIVES prim,
                    Attributes* const uniforms = NULL,
                    FragmentShader* const frag = NULL,
                    VertexShader* const vert = NULL,
-                   Buffer2D<double>* zBuf = NULL);       
+                   Buffer2D<double>* zBuf = NULL);             
 
 /****************************************
  * DETERMINANT
  * Find the determinant of a matrix with
- * X, Y components from 2 vectors.
+ * components A, B, C, D from 2 vectors.
  ***************************************/
-inline double determinant(const double & V1x, const double & V2x, const double & V1y, const double & V2y)
+inline double determinant(const double & A, const double & B, const double & C, const double & D)
 {
-  return ((V1x * V2y) - (V1y * V2x));
+  return (A*D - B*C);
 }
 
-/****************************************************
- * Interpolation
- *  Finds the point on the triangle
- *  Then figgures out the color value based off of the 
- *  attributes and 
- * *****************************************************/
-double interp(double area, double *det, double attrs1, double attrs2, double attrs3)
-{
-    return ((det[0] / area) * attrs3) + ((det[1] / area) * attrs1) + ((det[2] / area) * attrs2);
-}
 
+struct wallLoc
+{
+    int  row;
+    int  col;
+    char dir;
+};
+
+class DMap
+{
+public:
+    static const int mapNum = 10;
+    int map[mapNum][mapNum];
+    int spawnPos[2];
+    int rows;
+    int cols;
+    std::vector<wallLoc> wallV();
+
+    DMap()
+    {
+        rows = mapNum;
+        cols = mapNum;       
+                         // These coor start from the top left start at 0
+        spawnPos[0] = 5; // This is the spawn Row, Left/Right -> Left = lower #, Right = higher #
+        spawnPos[1] = 6; // This is the spawn Col, Up/Down -> Up = lower #, Down = higher #
+
+        int temp[mapNum][mapNum] =
+           {{0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,1,1,0,0,0,0},
+            {0,0,0,0,1,1,0,0,0,0},
+            {0,0,0,0,1,1,0,0,0,0},
+            {0,0,0,1,1,1,1,0,0,0},
+            {0,0,0,1,1,1,1,0,0,0},
+            {0,0,0,1,1,1,1,0,0,0},
+            {0,0,0,1,1,1,1,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0}};
+
+        for(int i = 0; i < cols; i++)
+            for(int a = 0; a < rows; a++)
+                map[i][a] = temp[i][a];
+    }
+
+
+    int getRows() {return rows;}
+    int getCols() {return cols;}
+
+    // Used in making sure the it initaly renders at the spawn point
+    int getDistX(int r) {return (spawnPos[0] - r);}
+    int getDistY(int c) {return (spawnPos[1] - c);}
+
+    /****************************
+     * isEdge(int row, int col, bool wallDirections[])
+     * 
+     * Checks if we are going to go out of bound of the map
+     * if we are we put a wall there.
+     ****************************/
+    void isEdge(int r, int c, bool check[])
+    {
+        // Sets the array to default
+        check[0] = check[1] = check[2] = check[3] = false; //Use and array.  E, S, W, N
+
+        // Checks top of map
+        if (c == 0)
+            check[0] = true;
+
+        // Checks bot of map
+        if (c == (rows - 1))
+            check[2] = true;
+
+        // Checks left of map
+        if (r == 0)
+            check[1] = true;
+
+        // Checks right of map
+        if (c == (cols - 1))
+            check[3] = true;
+    }
+    
+    /****************************
+     * checkWalls(int row, int col, bool wallDirections[])
+     * 
+     * Checks if there is a wall already
+     * and if there isn't then we check if a 1 touches a 0
+     * if they do then we put a wall there
+     ****************************/
+    void checkWalls(int r, int c, bool check[])
+    {
+         //Use and array.  E, S, W, N
+        char type = 'A';
+
+         // Checks the East wall
+        if (!check[0] && map[r][c + 1] == 0)
+            check[0] = true;
+        
+         // Checks the South wall
+        if (!check[1] && map[r + 1][c] == 0)
+            check[1] = true;
+
+         // Checks the West wall
+        if (!check[2] && map[r][c - 1] == 0)
+            check[2] = true;
+
+         // Checks the North wall
+        if (!check[3] && map[r - 1][c] == 0)
+            check[3] = true;
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (check[i])
+            {
+                switch(i)
+                {
+                case 0:
+                    type = 'E';
+                    break;
+                case 1:
+                    type = 'S';
+                    break;
+                case 2:
+                    type = 'W';
+                    break;
+                case 3:
+                    type = 'N';
+                    break;
+                }
+
+                wallLoc temp;
+                temp.row = r; 
+                temp.col = c; 
+                temp.dir = type;
+                //wallV.pushBack(temp);
+            }
+        }
+        
+    }
+
+};
+
+       
 #endif
- 

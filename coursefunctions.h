@@ -1,4 +1,7 @@
 #include "definitions.h"
+#include "shaders.h"
+#include <string>
+#include <iostream>
 
 #ifndef COURSE_FUNCTIONS_H
 #define COURSE_FUNCTIONS_H
@@ -40,7 +43,6 @@ void GameOfLife(Buffer2D<PIXEL> & target)
 
         //Parse for inputs
         SDL_Event e;
-
         while(SDL_PollEvent(&e)) 
         {
                 int mouseX;
@@ -61,7 +63,6 @@ void GameOfLife(Buffer2D<PIXEL> & target)
                 {
                         // Clicking the mouse changes a pixel's color
                         SDL_GetMouseState(&mouseX, &mouseY);
-                        mouseY = S_HEIGHT - mouseY;
                         int gridX = mouseX / scaleFactor;
                         int gridY = mouseY / scaleFactor;
                         if(grid[gridY][gridX] == 1)
@@ -81,72 +82,7 @@ void GameOfLife(Buffer2D<PIXEL> & target)
         // Advance the simulation after pressing 'g'
         if(!isSetup)
         {
-                int gridN[64][64];
-
-                //Stores the neighbor information in a temp grid
-                for(int y = 0; y < 64; y++)
-                {
-                        for(int x = 0; x < 64; x++)
-                        {
-                                int neighbors = 0;
-
-                                //Checks if neighbors are alive
-
-                                //North West
-                                if(grid[y+1][x+1] == 1)
-                                        neighbors++;
-                                //North
-                                if(grid[y+1][x] == 1)
-                                        neighbors++;
-                                //North East
-                                if(grid[y+1][x-1] == 1)
-                                        neighbors++;
-                                //West
-                                if(grid[y][x+1] == 1)
-                                        neighbors++;
-                                //East
-                                if(grid[y][x-1] == 1)
-                                        neighbors++;
-                                //South West
-                                if(grid[y-1][x+1] == 1)
-                                        neighbors++;
-                                //South
-                                if(grid[y-1][x] == 1)
-                                        neighbors++;
-                                //South East
-                                if(grid[y-1][x-1] == 1)
-                                        neighbors++;
-
-                                //Sets the current location on the neighbor grid to the value
-                                //of neighbors
-                                gridN[y][x] = neighbors;
-                        }
-                }
-
-                //Uses the neighbor grid to make changes to the main grid
-                for(int y = 0; y < 64; y++)
-                {
-                        for(int x = 0; x < 64; x++)
-                        {
-                                // Neighbor logic based off of neighbors
-
-                                // Any live cell with fewer than two live neighbors dies, as if by underpopulation.
-                                if (grid[y][x] == 1 && gridN[y][x] < 2)
-                                        grid[y][x] = 0;
-
-                                // Any live cell with two or three live neighbors lives on to the next generation.
-                                if (grid[y][x] == 1 && (gridN[y][x] == 3 || gridN[y][x] == 2))
-                                        grid[y][x] = 1;
-
-                                // Any live cell with more than three live neighbors dies, as if by overpopulation.
-                                if (grid[y][x] == 1 && gridN[y][x] > 3)
-                                        grid[y][x] = 0;
-
-                                // Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
-                                if (grid[y][x] == 0 && gridN[y][x] == 3)
-                                        grid[y][x] = 1;
-                        }
-                }
+                // Your Code goes here
 
                 // Wait a half-second between iterations
                 SDL_Delay(500);
@@ -160,7 +96,6 @@ void GameOfLife(Buffer2D<PIXEL> & target)
                 {
                         int yScal = y/scaleFactor;
                         int xScal = x/scaleFactor;
-                        
                         if(grid[yScal][xScal] == 0)
                         {
                                 // Dead Color
@@ -180,7 +115,7 @@ void GameOfLife(Buffer2D<PIXEL> & target)
  * NOTE: Assumes that the resolution is an even 
  * value in both dimensions.
  **************************************************/
-void CADView(Buffer2D<PIXEL> & target) 
+void CADView(Buffer2D<PIXEL> & target)
 {
         // Each CAD Quadrant
         static int halfWid = target.width()/2;
@@ -188,11 +123,15 @@ void CADView(Buffer2D<PIXEL> & target)
         static Buffer2D<PIXEL> topLeft(halfWid, halfHgt);
         static Buffer2D<PIXEL> topRight(halfWid, halfHgt);
         static Buffer2D<PIXEL> botLeft(halfWid, halfHgt);
-        static Buffer2D<PIXEL> botRight(halfWid, halfHgt); 
+        static Buffer2D<PIXEL> botRight(halfWid, halfHgt);
 
 
         // Your code goes here 
         // Feel free to copy from other test functions to get started!
+
+
+
+
 
 
         // Blit four panels to target
@@ -220,10 +159,8 @@ void TestDrawPixel(Buffer2D<PIXEL> & target)
         Vertex vert = {10, 502, 1, 1};
         Attributes pointAttributes;
         PIXEL color = 0xffff0000;
-        // Your Code goes here for 'pointAttributes'       
-        pointAttributes.color = color;
-
-        DrawPrimitive(POINT, target, &vert, &pointAttributes);
+	
+        //DrawPrimitive(POINT, target, &vert, &pointAttributes);
 }
 
 /***********************************************
@@ -240,49 +177,63 @@ void TestDrawTriangle(Buffer2D<PIXEL> & target)
         verts[1] = (Vertex){150, 452, 1, 1};
         verts[2] = (Vertex){50, 452, 1, 1};
         PIXEL colors1[3] = {0xffff0000, 0xffff0000, 0xffff0000};
-        attr[0].color = colors1[0];
-        attr[1].color = colors1[1];
-        attr[2].color = colors1[2];
-
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors1[0]);
+ 	attr[1].insertDbl(colors1[1]);
+	attr[2].insertDbl(colors1[2]);
         DrawPrimitive(TRIANGLE, target, verts, attr);
 
         verts[0] = (Vertex){300, 402, 1, 1};
         verts[1] = (Vertex){250, 452, 1, 1};
         verts[2] = (Vertex){250, 362, 1, 1};
-        PIXEL colors2[3] = {0xff00ff00, 0xff00ff00, 0xff00ff00};
-        attr[0].color = colors2[0];
-        attr[1].color = colors2[1];
-        attr[2].color = colors2[2];
+        PIXEL colors2[3] = {0xffff0000, 0xffff0000, 0xffff0000};
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors2[0]);
+ 	attr[1].insertDbl(colors2[1]);
+	attr[2].insertDbl(colors2[2]);
 
         DrawPrimitive(TRIANGLE, target, verts, attr);
 
         verts[0] = (Vertex){450, 362, 1, 1};
         verts[1] = (Vertex){450, 452, 1, 1};
         verts[2] = (Vertex){350, 402, 1, 1};
-        PIXEL colors3[3] = {0xff0000ff, 0xff0000ff, 0xff0000ff};
-        attr[0].color = colors3[0];
-        attr[1].color = colors3[1];
-        attr[2].color = colors3[2];
+        PIXEL colors3[3] = {0xff00ff00, 0xff00ff00, 0xff00ff00};
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors3[0]);
+ 	attr[1].insertDbl(colors3[1]);
+	attr[2].insertDbl(colors3[2]);
 
         DrawPrimitive(TRIANGLE, target, verts, attr);
         
         verts[0] = (Vertex){110, 262, 1, 1};
         verts[1] = (Vertex){60, 162, 1, 1};
         verts[2] = (Vertex){150, 162, 1, 1};
-        PIXEL colors4[3] = {0xffff0000, 0xffff0000, 0xffff0000};
-        attr[0].color = colors4[0];
-        attr[1].color = colors4[1];
-        attr[2].color = colors4[2];
+        PIXEL colors4[3] = {0xff00ff00, 0xff00ff00, 0xff00ff00};
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors4[0]);
+ 	attr[1].insertDbl(colors4[1]);
+	attr[2].insertDbl(colors4[2]);
 
         DrawPrimitive(TRIANGLE, target, verts, attr);
 
         verts[0] = (Vertex){210, 252, 1, 1};
         verts[1] = (Vertex){260, 172, 1, 1};
         verts[2] = (Vertex){310, 202, 1, 1};
-        PIXEL colors5[3] = {0xff00ff00, 0xff00ff00, 0xff00ff00};
-        attr[0].color = colors5[0];
-        attr[1].color = colors5[1];
-        attr[2].color = colors5[2];
+        PIXEL colors5[3] = {0xff0000ff, 0xff0000ff, 0xff0000ff};
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors5[0]);
+ 	attr[1].insertDbl(colors5[1]);
+	attr[2].insertDbl(colors5[2]);
 
         DrawPrimitive(TRIANGLE, target, verts, attr);
         
@@ -290,9 +241,12 @@ void TestDrawTriangle(Buffer2D<PIXEL> & target)
         verts[1] = (Vertex){430, 162, 1, 1};
         verts[2] = (Vertex){470, 252, 1, 1};
         PIXEL colors6[3] = {0xff0000ff, 0xff0000ff, 0xff0000ff};
-        attr[0].color = colors6[0];
-        attr[1].color = colors6[1];
-        attr[2].color = colors6[2];
+	attr[0].numMembers = 0;
+	attr[1].numMembers = 0;
+	attr[2].numMembers = 0;
+	attr[0].insertDbl(colors5[6]);
+ 	attr[1].insertDbl(colors5[6]);
+	attr[2].insertDbl(colors5[6]);
 
         DrawPrimitive(TRIANGLE, target, verts, attr);
 }
@@ -306,28 +260,32 @@ void TestDrawFragments(Buffer2D<PIXEL> & target)
 {
         /**************************************************
         * 1. Interpolated color triangle
-        *************************************************/
+        **************************************************/
         Vertex colorTriangle[3];
         Attributes colorAttributes[3];
         colorTriangle[0] = (Vertex){250, 112, 1, 1};
         colorTriangle[1] = (Vertex){450, 452, 1, 1};
         colorTriangle[2] = (Vertex){50, 452, 1, 1};
         PIXEL colors[3] = {0xffff0000, 0xff00ff00, 0xff0000ff}; // Or {{1.0,0.0,0.0}, {0.0,1.0,0.0}, {0.0,0.0,1.0}}
+	colorAttributes[0].insertDbl(1.0);
+	colorAttributes[0].insertDbl(0.0);
+	colorAttributes[0].insertDbl(0.0);
+	colorAttributes[1].insertDbl(0.0);
+	colorAttributes[1].insertDbl(1.0);
+	colorAttributes[1].insertDbl(0.0);
+	colorAttributes[2].insertDbl(0.0);
+	colorAttributes[2].insertDbl(0.0);
+	colorAttributes[2].insertDbl(1.0);
 
-        // Sets the colors for the vertexs
-        colorAttributes[0].setRed(1.0);
-	colorAttributes[1].setGreen(1.0);
-	colorAttributes[2].setBlue(1.0);
+        // Your color code goes here for 'colorAttributes'
 
         FragmentShader myColorFragShader;
-        myColorFragShader.FragShader = ColorFragShader;
+	myColorFragShader.FragShader = ColorFragShader;
 
         Attributes colorUniforms;
-        // Your code for the uniform goes here, if any (don't pass NULL here)
+	// Nothing gets setup this time
 
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader);
-
-        //return;
 
         /****************************************************
          * 2. Interpolated image triangle
@@ -338,17 +296,20 @@ void TestDrawFragments(Buffer2D<PIXEL> & target)
         imageTriangle[1] = (Vertex){500, 252, 1, 1};
         imageTriangle[2] = (Vertex){350, 252, 1, 1};
         double coordinates[3][2] = { {1,0}, {1,1}, {0,1} };
+        imageAttributes[0].insertDbl(coordinates[0][0]);
+	imageAttributes[0].insertDbl(coordinates[0][1]);
+	imageAttributes[1].insertDbl(coordinates[1][0]);
+        imageAttributes[1].insertDbl(coordinates[1][1]);
+	imageAttributes[2].insertDbl(coordinates[2][0]);
+	imageAttributes[2].insertDbl(coordinates[2][1]);
 
-        // Sets the bitmap cooridnates for the triangle
-        imageAttributes[0].setCoor(coordinates[0][0], coordinates[0][1]);
-        imageAttributes[1].setCoor(coordinates[1][0], coordinates[1][1]);
-        imageAttributes[2].setCoor(coordinates[2][0], coordinates[2][1]);
+        // Your texture coordinate code goes here for 'imageAttributes'
 
-        static BufferImage myImage("142008.bmp");
+        static BufferImage myImage("sax.bmp");
+        // Provide an image in this directory that you would like to use (powers of 2 dimensions)
 
         Attributes imageUniforms;
-        imageUniforms.myMap["img"].ptr = &myImage;
-        //imageUniforms.setImg(&myImage);
+        imageUniforms.insertPtr(&myImage);
 
         FragmentShader myImageFragShader;
         myImageFragShader.FragShader = ImageFragShader;
@@ -379,6 +340,7 @@ void TestDrawPerspectiveCorrect(Buffer2D<PIXEL> & target)
         verticesImgA[1] = quad[1];
         verticesImgA[2] = quad[2];
 
+
         Vertex verticesImgB[3];        
         Attributes imageAttributesB[3];
         verticesImgB[0] = quad[2];
@@ -386,23 +348,36 @@ void TestDrawPerspectiveCorrect(Buffer2D<PIXEL> & target)
         verticesImgB[2] = quad[0];
 
         double coordinates[4][2] = { {0/divA,0/divA}, {1/divA,0/divA}, {1/divB,1/divB}, {0/divB,1/divB} };
-        // Setting the texture coordinates for image A, the first tiangle
-        imageAttributesA[0].setCoor(coordinates[0][0], coordinates[0][1]);
-        imageAttributesA[1].setCoor(coordinates[1][0], coordinates[1][1]);
-        imageAttributesA[2].setCoor(coordinates[2][0], coordinates[2][1]);
+        // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
 
-        // Setting the texture coordinates for image B, the second tiangle
-        imageAttributesB[0].setCoor(coordinates[2][0], coordinates[2][1]);
-        imageAttributesB[1].setCoor(coordinates[3][0], coordinates[3][1]);
-        imageAttributesB[2].setCoor(coordinates[0][0], coordinates[0][1]);
+	
+	// Setup Attributes for 'A'
+	imageAttributesA[0].insertDbl(coordinates[0][0]);
+	imageAttributesA[0].insertDbl(coordinates[0][1]);
+	imageAttributesA[1].insertDbl(coordinates[1][0]);
+	imageAttributesA[1].insertDbl(coordinates[1][1]);
+	imageAttributesA[2].insertDbl(coordinates[2][0]);
+	imageAttributesA[2].insertDbl(coordinates[2][1]);
 
-        // Sets the image as an attribute *** Currently doesn't work because of the bit map issues with mac ***
+	// Setup Attributes for 'B'
+	imageAttributesB[0].insertDbl(coordinates[2][0]);
+	imageAttributesB[0].insertDbl(coordinates[2][1]);
+	imageAttributesB[1].insertDbl(coordinates[3][0]);
+	imageAttributesB[1].insertDbl(coordinates[3][1]);
+	imageAttributesB[2].insertDbl(coordinates[0][0]);
+	imageAttributesB[2].insertDbl(coordinates[0][1]);
+
+
+
+        static BufferImage myImage("checker.bmp");
+        // Ensure the checkboard image is in this directory
+
         Attributes imageUniforms;
+	imageUniforms.insertPtr(&myImage);
 
-        // Set the fragment shader
         FragmentShader fragImg;
         fragImg.FragShader = FragShaderUVwithoutImage;
-                
+	        
         // Draw image triangle 
         DrawPrimitive(TRIANGLE, target, verticesImgA, imageAttributesA, &imageUniforms, &fragImg);
         DrawPrimitive(TRIANGLE, target, verticesImgB, imageAttributesB, &imageUniforms, &fragImg);
@@ -425,105 +400,228 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
 
         PIXEL colors[3] = {0xffff0000, 0xff00ff00, 0xff0000ff};
         // Your code for 'colorAttributes' goes here
-        colorAttributes[0].setRed(1.0);
-	colorAttributes[1].setGreen(1.0);
-	colorAttributes[2].setBlue(1.0);
+
+        colorAttributes[0].insertDbl(1.0);
+        colorAttributes[0].insertDbl(0.0);
+        colorAttributes[0].insertDbl(0.0);
+        colorAttributes[1].insertDbl(0.0);
+        colorAttributes[1].insertDbl(1.0);
+        colorAttributes[1].insertDbl(0.0);
+        colorAttributes[2].insertDbl(0.0);
+        colorAttributes[2].insertDbl(0.0);
+        colorAttributes[2].insertDbl(1.0);
 
         FragmentShader myColorFragShader;
-        myColorFragShader.FragShader = ColorFragShader;
+        myColorFragShader.setShader(ColorFragShader);
 
         Attributes colorUniforms;
+        // Your code for the uniform goes here, if any (don't pass NULL here)
         
-        VertexShader myColorVertexShader;
-        myColorVertexShader = TransformVertexShader;
-        // Your code for the vertex shader goes here 
-
-
-
-        /*
-        REMEMBER
-         x , y , z
-        {SR, R , T} x
-        {R , SR, T} y
-        {NA, NA, S} z
-        */
+        VertexShader myColorVertexShader(SimpleVertexShader);
 
         /******************************************************************
-		 * TRANSLATE (move +100 in the X direction, +50 in the Y direction)
+		* TRANSLATE (move +100 in the X direction, +50 in the Y direction)
          *****************************************************************/
         // Your translating code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
 
-        // Matrix that Translates +100 X and +50 Y
-        double tempT[4][4] = 
-        {{1, 0, 100,   0},
-         {0, 1, 50 ,   0},
-         {0, 0, 1  ,   0},
-         {0, 0, 0  ,   1}};
-        
-        // Pass in the matrix and set the matrix
-        Matrix MatrixT(tempT, 3, 3);
-        colorUniforms.matrix = MatrixT;
-
-        // Draw it
-	DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
+		Transform trans = translate4x4(100, 50, 0);
+		colorUniforms.insertPtr(&trans);
+	
+		DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /***********************************
          * SCALE (scale by a factor of 0.5)
          ***********************************/
         // Your scaling code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
 
-        // A matrix that scales by half (.5 or 1/2)
-        double tempS[4][4] =
-        {{.5, 0 , 0, 0},
-         {0 , .5, 0, 0},
-         {0 , 0 , 1, 0},
-         {0 , 0 , 0, 1}};
+        Transform scale = scale4x4(0.5);
+        colorUniforms[0].ptr = &scale;
 
-        // Makes it a matrix and sets the attribute
-        Matrix MatrixS(tempS, 3, 3);
-        colorUniforms.matrix = MatrixS;
-
-        // Draws it
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /**********************************************
-         * ROTATE 45 degrees in the X-Y plane around Z
+         * ROTATE 30 degrees in the X-Y plane around Z
          *********************************************/
         // Your rotation code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
 
-        double radians = 30 * M_PI / 180;
-        // A matrix that roates the x-y plain around the Z axis
-        double tempR[4][4] =
-        {{cos(radians), -sin(radians), 0, 0},
-         {sin(radians),  cos(radians), 0, 0},
-         {0           , 0            , 1, 0},
-         {0           , 0            , 0, 1}};
+        Transform rot = rotate4x4(Z, 30);
+        colorUniforms[0].ptr = &rot;
 
-        // Makes it a matrix and sets the attribute
-        Matrix MatrixR(tempR, 3, 3);
-        colorUniforms.matrix = MatrixR;
-
-        // Draws it
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
-
-
 
         /*************************************************
          * SCALE-TRANSLATE-ROTATE in left-to-right order
          * the previous transformations concatenated.
          ************************************************/
-	// Your scale-translate-rotation code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
-		
-        // Dose all the previous stuff combined
-        Matrix temp(tempS, 3, 3);
-        temp *= MatrixT;
-        temp *= MatrixR;
+		// Your scale-translate-rotation code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
 
-        // Sets the matrix
-        colorUniforms.matrix = temp;
+        Transform combined = rot * trans * scale;
+        colorUniforms[0].ptr = &combined;		
 
-        // Draws it
-        DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
+        DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);	
+}
+
+// Builds a square base off a vertex that is passed in and an image
+void buildSquare(Buffer2D<PIXEL> & target, Vertex quad[], BufferImage *myImage)
+{
+        static Buffer2D<double> zBuf(target.width(), target.height());
+
+        // Attributes for 1st tri
+        Vertex verticesImgA[3];
+        Attributes imageAttributesA[3];
+        verticesImgA[0] = quad[0];
+        verticesImgA[1] = quad[1];
+        verticesImgA[2] = quad[2];
+
+        // Attributes for 2nd tri
+        Vertex verticesImgB[3];        
+        Attributes imageAttributesB[3];
+        verticesImgB[0] = quad[2];
+        verticesImgB[1] = quad[3];
+        verticesImgB[2] = quad[0];
+
+        double coordinates[4][2] = { {0,0}, {1,0}, {1,1}, {0,1} };
+        // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
+
+        // First group of attributes 
+        imageAttributesA[0].insertDbl(coordinates[0][0]); 
+        imageAttributesA[0].insertDbl(coordinates[0][1]);
+        imageAttributesA[1].insertDbl(coordinates[1][0]);
+        imageAttributesA[1].insertDbl(coordinates[1][1]);
+        imageAttributesA[2].insertDbl(coordinates[2][0]);
+        imageAttributesA[2].insertDbl(coordinates[2][1]);
+        
+        // Second group of attributes
+        imageAttributesB[0].insertDbl(coordinates[2][0]); 
+        imageAttributesB[0].insertDbl(coordinates[2][1]);
+        imageAttributesB[1].insertDbl(coordinates[3][0]);
+        imageAttributesB[1].insertDbl(coordinates[3][1]);
+        imageAttributesB[2].insertDbl(coordinates[0][0]);
+        imageAttributesB[2].insertDbl(coordinates[0][1]);
+
+        // MVP Transformations
+        Transform model = translate4x4(0, 0, 0);
+        Transform view = camera4x4(myCam.x, myCam.y, myCam.z, 
+                                        myCam.yaw, myCam.pitch, myCam.roll);
+        Transform proj = perspective4x4(60, 1.0, 1, 200);
+
+        // Inserting the matrixies into the attributes
+        Attributes imageUniforms;
+
+        imageUniforms.insertPtr((void*)myImage);
+        imageUniforms.insertPtr((void*)&model);
+        imageUniforms.insertPtr((void*)&view);
+        imageUniforms.insertPtr((void*)&proj);
+
+        FragmentShader fragImg;
+        fragImg.FragShader = ImageFragShader;
+
+        VertexShader vertImg;
+        vertImg.VertShader = SimpleVertexShader2;
+
+        // Draw image triangle 
+        DrawPrimitive(TRIANGLE, target, verticesImgA, imageAttributesA, &imageUniforms, &fragImg, &vertImg, &zBuf);
+        DrawPrimitive(TRIANGLE, target, verticesImgB, imageAttributesB, &imageUniforms, &fragImg, &vertImg, &zBuf);
+
+}
+
+/************************************************
+ * The personal project tests
+ ***********************************************/
+void dungeonCrawler(Buffer2D<PIXEL> & target)
+{
+        DMap map;
+        bool direction[4]; //Use and array.  E, S, W, N
+
+        static BufferImage walls("wall.bmp");
+        static BufferImage floors("floor.bmp");
+
+        int deg = ((int)abs(myCam.yaw) % 360);
+
+        if (myCam.yaw < 0)
+                deg = (360 - deg);
+
+        //std::cout << "Yaw = " << deg << std::endl;
+
+        // Renders the world based off of the map
+        for (int r = 0; r < map.rows; r++)
+        {
+                for (int c = 0; c < map.cols; c++)
+                {
+                        if (map.map[c][r] == 1)
+                        {
+                                // Floor coord
+                                Vertex floor[] = { {-15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                   { 15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                   { 15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                   {-15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+                                // Roof coord
+                                Vertex roof[] = {  {-15 - (30 * map.getDistX(r)), 10,  15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                   { 15 - (30 * map.getDistX(r)), 10,  15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                   { 15 - (30 * map.getDistX(r)), 10, -15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                   {-15 - (30 * map.getDistX(r)), 10, -15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+
+
+                                // Get wall stuff working
+                                map.isEdge(c, r, direction);
+                                map.checkWalls(c, r, direction);
+
+                                // Builds the walls based off the direction
+                                for (int i = 0; i < 4; i++)
+                                        if(direction[i])
+                                        {
+                                                if (i == 0)
+                                                {
+                                                        // E-Wall Vertcies
+                                                        Vertex wallE[] = { { 15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                                           { 15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                                           { 15 - (30 * map.getDistX(r)),  10, -15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                                           { 15 - (30 * map.getDistX(r)),  10,  15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+                                                        buildSquare(target, wallE, &walls);
+                                                }
+                                                else if (i == 1)
+                                                {
+                                                        // S-Wall Vertcies
+                                                        Vertex wallS[] = { { 15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                                           {-15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                                           {-15 - (30 * map.getDistX(r)),  10, -15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                                           { 15 - (30 * map.getDistX(r)),  10, -15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+                                                        buildSquare(target, wallS, &walls);
+                                                }
+                                                else if (i == 2)
+                                                {
+                                                        // W-Wall Vertcies
+                                                        Vertex wallW[] = { {-15 - (30 * map.getDistX(r)), -20, -15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                                           {-15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                                           {-15 - (30 * map.getDistX(r)),  10,  15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                                           {-15 - (30 * map.getDistX(r)),  10, -15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+                                                        buildSquare(target, wallW, &walls);
+                                                }
+                                                
+                                                else if (i == 3)
+                                                {
+                                                        // N-Wall Vertcies
+                                                        Vertex wallN[] = { {-15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1},   // Q3, Left  Bot
+                                                                           { 15 - (30 * map.getDistX(r)), -20,  15 + (30 * map.getDistY(c)), 1},   // Q4, Right Bot
+                                                                           { 15 - (30 * map.getDistX(r)),  10,  15 + (30 * map.getDistY(c)), 1},   // Q1, Right Top
+                                                                           {-15 - (30 * map.getDistX(r)),  10,  15 + (30 * map.getDistY(c)), 1}};  // Q4, Left  Top
+                                                        buildSquare(target, wallN, &walls);
+                                                }
+                                        }
+
+
+                                // Builds the floor
+                                buildSquare(target, floor, &floors);
+
+                                // Builds the roof
+                                buildSquare(target, roof, &floors);
+                        }
+                }
+        }
+
+        
+
+
 }
 
 /********************************************
@@ -555,7 +653,7 @@ void TestPipeline(Buffer2D<PIXEL> & target)
         /**************************************************
         * 1. Image quad (2 TRIs) Code (texture interpolated)
         **************************************************/
-        Vertex quad[] = { {-20,-20, 50, 1},
+        Vertex quad[] = { {-20,-20, 50, 1}, 
                           {20, -20, 50, 1},
                           {20, 20, 50, 1},
                           {-20,20, 50, 1}};
@@ -574,20 +672,44 @@ void TestPipeline(Buffer2D<PIXEL> & target)
 
         double coordinates[4][2] = { {0,0}, {1,0}, {1,1}, {0,1} };
         // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
-
-        BufferImage myImage("checker.bmp");
-        // Ensure the checkboard image is in this directory, you can use another image though
-
+        imageAttributesA[0].insertDbl(coordinates[0][0]); // First group of attributes 
+        imageAttributesA[0].insertDbl(coordinates[0][1]);
+        imageAttributesA[1].insertDbl(coordinates[1][0]);
+        imageAttributesA[1].insertDbl(coordinates[1][1]);
+        imageAttributesA[2].insertDbl(coordinates[2][0]);
+        imageAttributesA[2].insertDbl(coordinates[2][1]);
+        imageAttributesB[0].insertDbl(coordinates[2][0]); // Second group of attributes
+        imageAttributesB[0].insertDbl(coordinates[2][1]);
+        imageAttributesB[1].insertDbl(coordinates[3][0]);
+        imageAttributesB[1].insertDbl(coordinates[3][1]);
+        imageAttributesB[2].insertDbl(coordinates[0][0]);
+        imageAttributesB[2].insertDbl(coordinates[0][1]);
+                        
+        static BufferImage myImage("checker.bmp");
         Attributes imageUniforms;
-        // Your code for the uniform goes here
+
+        Transform model = translate4x4(0, 0, 0);
+        Transform view = camera4x4(myCam.x, myCam.y, myCam.z, 
+                                        myCam.yaw, myCam.pitch, myCam.roll);
+        Transform proj = perspective4x4(60, 1.0, 1, 200);
+
+        // Uniforms
+        // [0] -> Image reference
+        // [1] -> Model transform 
+        // [2] -> View transform 
+        
+        imageUniforms.insertPtr((void*)&myImage);
+        imageUniforms.insertPtr((void*)&model);
+        imageUniforms.insertPtr((void*)&view);
+        imageUniforms.insertPtr((void*)&proj);
 
         FragmentShader fragImg;
-        // Your code for the image fragment shader goes here
+        fragImg.FragShader = FragShaderUVwithoutImage;
 
         VertexShader vertImg;
-        // Your code for the image vertex shader goes here
-        // NOTE: This must include the at least the 
-        // projection matrix if not more transformations 
+        vertImg.VertShader = SimpleVertexShader2;
+		
+		
                 
         // Draw image triangle 
         DrawPrimitive(TRIANGLE, target, verticesImgA, imageAttributesA, &imageUniforms, &fragImg, &vertImg, &zBuf);
